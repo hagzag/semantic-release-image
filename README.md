@@ -1,18 +1,19 @@
-# dind-aws-cli
+# semantic-release-image
 
-This repository contains a Dockerfile for building a Docker image that integrates AWS CLI (`aws-cli`) with Docker-in-Docker (`dind`). This setup is ideal for workflows requiring Docker operations alongside AWS service interactions, such as deploying containers to AWS Elastic Container Service (ECS) or other AWS-related tasks.
+This repository provides a Docker image that integrates **Docker-in-Docker (dind)** with **AWS CLI** (`aws-cli`). The image is designed for CI/CD workflows requiring Docker operations alongside AWS service interactions, such as deploying containers to AWS Elastic Container Service (ECS) or managing other AWS resources.
 
 ## Features
 
-- **AWS CLI**: Provides access to AWS services.
-- **Docker-in-Docker (dind)**: Enables running Docker commands inside containers.
+- **Docker-in-Docker (dind)**: Enables running Docker commands inside the container.
+- **AWS CLI (`aws-cli`)**: Provides the ability to interact with AWS services directly.
+- Preconfigured tools to simplify CI/CD workflows with semantic-release support.
 
-## Local Usage
+## Pull the Image
 
-   Pull the image from the Docker registry (you need to login first):
-   ```bash
-   docker pull ghcr.io/hagzag/semantic-release-image:latest
-   ```
+You can pull the image from the GitHub Container Registry:
+
+```bash
+docker pull ghcr.io/hagzag/semantic-release-image:latest
 
 ## in github-actsion
 
