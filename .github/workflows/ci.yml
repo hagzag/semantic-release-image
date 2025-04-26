@@ -15,7 +15,17 @@ on:
   # Allows you to run this workflow manually from the Actions tab
   workflow_dispatch:
 
-# A workflow run is made up of one or more jobs that can run sequentially or in parallel
+# Limits concurrency by branch
+concurrency:
+  group: ${{ github.head_ref || github.ref_name }} 
+  cancel-in-progress: true
+
+permissions:
+  contents: write   # For code checkout + tagging
+  packages: write   # For pushing to GHCR
+  actions: write    # If using other actions
+  id-token: write   # If using OIDC for cloud provider auth
+
 jobs:
   # This workflow contains a single job called "build"
   build:
@@ -30,7 +40,6 @@ jobs:
       run: |
         env
 
-    # semantic-release
     - uses: actions/setup-node@v3
       with:
         node-version: 20
@@ -66,9 +75,8 @@ jobs:
         # echo $SRTAG
         # cat nextVersion
       env:
-        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        GITHUB_TOKEN: ${{ secrets.GH_TOKEN }}
 
-    # build
     - name: Set up QEMU
       uses: docker/setup-qemu-action@v2
 
@@ -83,7 +91,7 @@ jobs:
       with:
         registry: ${{ env.REGISTRY }}
         username: ${{ github.actor }}
-        password: ${{ secrets.GITHUB_TOKEN }}
+        password: ${{ secrets.GH_TOKEN }}
 
     # add image caching 
     - uses: satackey/action-docker-layer-caching@v0.0.11
@@ -93,7 +101,6 @@ jobs:
         key: foo-docker-cache-{hash}
         restore-keys: |
           foo-docker-cache-
-
 
     # Extract metadata (tags, labels) for Docker
     # https://github.com/docker/metadata-action
@@ -129,5 +136,5 @@ jobs:
       run: |
         semantic-release -r ${{ github.server_url }}/${{ github.repository }}.git
       env:
-        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        GITHUB_TOKEN: ${{ secrets.GH_TOKEN }}
       if: steps.build_n_push.outputs.exit_code == 0
