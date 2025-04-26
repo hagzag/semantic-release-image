@@ -1,0 +1,17 @@
+version: "3"
+
+tasks:
+  build:
+    cmds:
+      - docker build -t hagzag/dind-aws-cli .
+
+  build:multiarch:
+    desc: Build multi-architecture Docker image
+    cmds:
+      - |
+        docker buildx create --name multiarch-builder --use || true
+        docker buildx build \
+          --platform linux/amd64,linux/arm64 \
+          -t hagzag/dind-aws-cli:latest \
+          --push \
+          .

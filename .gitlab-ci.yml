@@ -1,0 +1,95 @@
+---
+default:
+  image: docker:latest
+workflow:
+  rules:
+  - if: "$CI_COMMIT_TAG || $CI_COMMIT_MESSAGE =~ /^chore\\(release\\)/"
+    when: never
+  - if: "$CI_COMMIT_BRANCH && $CI_OPEN_MERGE_REQUESTS"
+    when: never
+  - if: $CI_PIPELINE_SOURCE == "merge_request_event" && $CI_MERGE_REQUEST_TARGET_BRANCH_NAME
+      == $CI_DEFAULT_BRANCH
+  - if: "$CI_COMMIT_BRANCH =~ /^main$|^dev$|^[0-9]+-.*/"
+stages:
+- ".pre"
+- build
+- release
+- deploy
+- ".post"
+build:
+  stage: build
+  services:
+  - docker:dind
+  variables:
+    DOCKER_TLS_VERIFY: 1
+    DOCKER_TLS_CERTDIR: "/certs"
+    DOCKER_HOST: tcp://docker:2376
+    DOCKER_CERT_PATH: "$DOCKER_TLS_CERTDIR/client"
+  before_script:
+  - docker context create context
+  - docker buildx create --driver docker-container --bootstrap --use context
+  - docker buildx inspect
+  - docker buildx install
+  - echo $CI_REGISTRY_PASSWORD | docker login --username $CI_REGISTRY_USER --password-stdin
+    $CI_REGISTRY
+  script:
+  - docker buildx build --platform linux/amd64,linux/arm64 --build-arg BUILDKIT_INLINE_CACHE=1
+    --cache-from $CI_REGISTRY_IMAGE:$CI_COMMIT_REF_SLUG --cache-to $CI_REGISTRY_IMAGE:$CI_COMMIT_REF_SLUG
+    .
+release:
+  stage: release
+  before_script:
+  - apk update && apk add --no-cache npm && rm -rf /var/cache/apk/*
+  - npm install -g semantic-release@24 @semantic-release/git @semantic-release/exec
+  - |
+    cat <<EOF > .releaserc.yml
+    branches:
+      - main
+      - name: dev
+        prerelease: true
+    plugins:
+      - "@semantic-release/release-notes-generator"
+      - "@semantic-release/commit-analyzer"
+      - "@semantic-release/git"
+      - - "@semantic-release/exec"
+        - verifyReleaseCmd: echo v\${nextRelease.version} > nextVersion
+    EOF
+  script:
+  - semantic-release
+  - test -f nextVersion && echo "SRTAG=$(cat nextVersion)" >> release.env || echo
+    "SRTAG=${CI_COMMIT_SHORT_SHA}" >> release.env
+  - cat release.env
+  artifacts:
+    untracked: true
+    when: on_success
+    expire_in: 30 days
+    paths:
+    - nextVersion
+    reports:
+      dotenv:
+      - release.env
+deploy:
+  stage: deploy
+  services:
+  - docker:dind
+  variables:
+    DOCKER_TLS_VERIFY: 1
+    DOCKER_TLS_CERTDIR: "/certs"
+    DOCKER_HOST: tcp://docker:2376
+    DOCKER_CERT_PATH: "$DOCKER_TLS_CERTDIR/client"
+  before_script:
+  - docker context create context
+  - docker buildx create --driver docker-container --bootstrap --use context
+  - docker buildx inspect
+  - docker buildx install
+  - echo $CI_REGISTRY_PASSWORD | docker login --username $CI_REGISTRY_USER --password-stdin
+    $CI_REGISTRY
+  script:
+  - docker buildx build --platform linux/amd64,linux/arm64 --build-arg BUILDKIT_INLINE_CACHE=1 --cache-from $CI_REGISTRY_IMAGE:$CI_COMMIT_REF_SLUG
+    --tag $CI_REGISTRY_IMAGE:$CI_COMMIT_REF_SLUG --tag $CI_REGISTRY_IMAGE:$SRTAG --tag
+    $CI_REGISTRY_IMAGE:latest --push .
+  extends: build
+  needs:
+  - build
+  - release
+
