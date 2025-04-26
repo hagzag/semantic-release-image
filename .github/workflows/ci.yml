@@ -1,11 +1,8 @@
-# This is a basic workflow to help you get started with Actions
-
+---
 name: Contionuos Integration Flow
 
 env:
-  # Use docker.io for Docker Hub if empty
   REGISTRY: ghcr.io
-  # github.repository as <account>/<repo>
   IMAGE_NAME: ${{ github.repository }}
 
 # Controls when the workflow will run
@@ -22,14 +19,14 @@ on:
 jobs:
   # This workflow contains a single job called "build"
   build:
-    #  runs-on: ubuntu-latest
-    runs-on: [self-hosted]
     # The type of runner that the job will run on
-    # Steps represent a sequence of tasks that will be executed as part of the job
+     runs-on: ubuntu-latest
+    # runs-on: [self-hosted]
     steps:
-    # Checks-out your repository under $GITHUB_WORKSPACE, so your job can access it
+
     - uses: actions/checkout@v3
-    - name: getenv
+
+    - name: display env
       run: |
         env
 
@@ -115,8 +112,6 @@ jobs:
     - name: List Docker tag
       run: echo "${{ steps.meta.outputs.tags }}"
 
-
-
     # Build and push Docker image with Buildx (don't push on PR's)
     # https://github.com/docker/build-push-action
     - name: Build and push Docker image
@@ -136,4 +131,3 @@ jobs:
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       if: steps.build_n_push.outputs.exit_code == 0
-
